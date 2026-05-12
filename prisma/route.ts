@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { sql } from "@vercel/postgres";
 
 export async function GET() {
-  const bookings = await prisma.booking.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json(bookings);
+  try {
+    const { rows } = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
+    return NextResponse.json(rows);
+  } catch {
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { ref, name, phone, email, date, time, service, notes } = body;
-
-  const booking = await prisma.booking.create({
-    data: { ref, name, phone, email, date, time, service, notes },
-  });
-
-  return NextResponse.json(booking);
+  try {
+    const { ref, name, phone, email, date, time, service, notes } = await req.json();
+    const { rows } = await sql`
+      INSERT INTO bookings (ref, name, phone, email, date, time, service, notes)
+      VALUES (${ref}, ${name}, ${phone}, ${email}, ${date}, ${time}, ${service}, ${notes})
+      RETURNING *
+    `;
+    return NextResponse.json(rows[0]);
+  } catch {
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
+  }
 }
