@@ -3,19 +3,6 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-model Booking {
-  id        Int      @id @default(autoincrement())
-  ref       String   @unique
-  name      String
-  phone     String
-  email     String?
-  date      String
-  time      String
-  service   String
-  notes     String?
-  createdAt DateTime @default(now())
 }
