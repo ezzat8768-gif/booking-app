@@ -15,6 +15,18 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const { ref, name, phone, email, date, time, service, notes } = await req.json();
+
+    // منع حجز نفس الوقت مرتين
+    const existing = await sql`
+      SELECT id FROM bookings WHERE date = ${date} AND time = ${time}
+    `;
+    if (existing.length > 0) {
+      return NextResponse.json(
+        { error: "هذا الوقت محجوز بالفعل، اختار وقت تاني!" },
+        { status: 400 }
+      );
+    }
+
     const rows = await sql`
       INSERT INTO bookings (ref, name, phone, email, date, time, service, notes)
       VALUES (${ref}, ${name}, ${phone}, ${email}, ${date}, ${time}, ${service}, ${notes})
