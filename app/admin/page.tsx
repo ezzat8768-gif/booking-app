@@ -26,8 +26,13 @@ export default function AdminPage() {
   const [adminPass, setAdminPass] = useState("");
   const [adminOpen, setAdminOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"bookings" | "stats">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "stats" | "settings">("bookings");
   const [filterDate, setFilterDate] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [oldPass, setOldPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [passMsg, setPassMsg] = useState("");
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -46,8 +51,45 @@ export default function AdminPage() {
   }, [adminOpen]);
 
   const openAdmin = () => {
-    if (adminPass === "admin123") { setAdminOpen(true); setAdminPass(""); }
-    else alert("كلمة السر غلط!");
+    if (adminPass === "admin123" || adminPass === currentPassword) {
+      setAdminOpen(true);
+      setCurrentPassword(adminPass);
+      setAdminPass("");
+    } else {
+      alert("كلمة السر غلط!");
+    }
+  };
+
+  const changePassword = async () => {
+    if (!oldPass || !newPass || !confirmPass) {
+      setPassMsg("❌ اكمل كل الحقول!");
+      return;
+    }
+    if (newPass !== confirmPass) {
+      setPassMsg("❌ كلمة السر الجديدة مش متطابقة!");
+      return;
+    }
+    if (newPass.length < 6) {
+      setPassMsg("❌ كلمة السر لازم تكون 6 أحرف على الأقل!");
+      return;
+    }
+    try {
+      const res = await fetch("/api/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldPassword: oldPass, newPassword: newPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPassMsg("❌ " + data.error);
+      } else {
+        setPassMsg("✅ تم تغيير كلمة السر بنجاح!");
+        setCurrentPassword(newPass);
+        setOldPass(""); setNewPass(""); setConfirmPass("");
+      }
+    } catch {
+      setPassMsg("❌ حصل خطأ!");
+    }
   };
 
   const today = new Date().toISOString().split("T")[0];
@@ -62,11 +104,8 @@ export default function AdminPage() {
   const monthRevenue = monthBookings.reduce((sum, b) => sum + getPrice(b.service), 0);
   const totalRevenue = bookings.reduce((sum, b) => sum + getPrice(b.service), 0);
 
-  const filteredBookings = filterDate
-    ? bookings.filter(b => b.date === filterDate)
-    : bookings;
+  const filteredBookings = filterDate ? bookings.filter(b => b.date === filterDate) : bookings;
 
-  // Group by date for chart
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
@@ -75,9 +114,7 @@ export default function AdminPage() {
 
   const exportToCSV = () => {
     const headers = ["رقم الحجز", "الاسم", "التليفون", "الخدمة", "التاريخ", "الوقت", "السعر", "ملاحظات"];
-    const rows = bookings.map(b => [
-      b.ref, b.name, b.phone, b.service, b.date, b.time, getPrice(b.service), b.notes || ""
-    ]);
+    const rows = bookings.map(b => [b.ref, b.name, b.phone, b.service, b.date, b.time, getPrice(b.service), b.notes || ""]);
     const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -88,25 +125,17 @@ export default function AdminPage() {
   };
 
   const tabStyle = (tab: string) => ({
-    padding: "10px 24px",
-    borderRadius: 8,
-    border: "none",
-    cursor: "pointer",
-    fontFamily: "Cairo",
-    fontWeight: 700,
-    fontSize: 14,
-    background: activeTab === tab ? "#3b82f6" : "rgba(255,255,255,0.1)",
-    color: "#fff",
+    padding: "10px 20px", borderRadius: 8, border: "none", cursor: "pointer",
+    fontFamily: "Cairo", fontWeight: 700, fontSize: 13,
+    background: activeTab === tab ? "#3b82f6" : "rgba(255,255,255,0.1)", color: "#fff",
   });
 
   return (
     <div style={{ fontFamily: "'Cairo', sans-serif", minHeight: "100vh", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)", direction: "rtl" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet" />
-
       <header style={{ background: "rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "16px 32px" }}>
         <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>🔐 لوحة إدارة الحجوزات</h1>
       </header>
-
       <main style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 20px" }}>
         {!adminOpen ? (
           <div style={{ maxWidth: 400, margin: "80px auto", textAlign: "center" }}>
@@ -123,26 +152,15 @@ export default function AdminPage() {
           </div>
         ) : (
           <div>
-            {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
               <h2 style={{ color: "#fff", fontSize: 22, margin: 0 }}>📊 لوحة التحكم</h2>
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={exportToCSV}
-                  style={{ padding: "8px 16px", background: "#22c55e", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo", fontWeight: 700, fontSize: 13 }}>
-                  📥 تحميل Excel
-                </button>
-                <button onClick={fetchBookings}
-                  style={{ padding: "8px 16px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo" }}>
-                  🔄 تحديث
-                </button>
-                <button onClick={() => setAdminOpen(false)}
-                  style={{ padding: "8px 16px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo" }}>
-                  خروج
-                </button>
+                <button onClick={exportToCSV} style={{ padding: "8px 16px", background: "#22c55e", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo", fontWeight: 700, fontSize: 13 }}>📥 تحميل Excel</button>
+                <button onClick={fetchBookings} style={{ padding: "8px 16px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo" }}>🔄 تحديث</button>
+                <button onClick={() => setAdminOpen(false)} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo" }}>خروج</button>
               </div>
             </div>
 
-            {/* Stats Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
               {[
                 { label: "حجوزات اليوم", value: todayBookings.length, sub: `${todayRevenue} جنيه`, icon: "📅", color: "#3b82f6" },
@@ -158,7 +176,6 @@ export default function AdminPage() {
               ))}
             </div>
 
-            {/* Chart - Last 7 days */}
             <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24, marginBottom: 24 }}>
               <h3 style={{ color: "#fff", margin: "0 0 16px", fontSize: 16 }}>📈 الحجوزات - آخر 7 أيام</h3>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>
@@ -170,7 +187,7 @@ export default function AdminPage() {
                   return (
                     <div key={day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                       <div style={{ fontSize: 11, color: "#94a3b8" }}>{count}</div>
-                      <div style={{ width: "100%", height: height, background: isToday ? "#3b82f6" : "#1e3a5f", borderRadius: 4, transition: "all 0.3s" }} />
+                      <div style={{ width: "100%", height: height, background: isToday ? "#3b82f6" : "#1e3a5f", borderRadius: 4 }} />
                       <div style={{ fontSize: 10, color: isToday ? "#3b82f6" : "#64748b" }}>
                         {new Date(day).toLocaleDateString("ar-EG", { weekday: "short" })}
                       </div>
@@ -180,25 +197,21 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Tabs */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <button style={tabStyle("bookings")} onClick={() => setActiveTab("bookings")}>📋 الحجوزات</button>
-              <button style={tabStyle("stats")} onClick={() => setActiveTab("stats")}>📊 تفاصيل الإيرادات</button>
+              <button style={tabStyle("stats")} onClick={() => setActiveTab("stats")}>📊 الإيرادات</button>
+              <button style={tabStyle("settings")} onClick={() => setActiveTab("settings")}>⚙️ الإعدادات</button>
             </div>
 
             {activeTab === "bookings" && (
               <div>
-                {/* Filter */}
                 <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center" }}>
                   <label style={{ color: "#94a3b8", fontSize: 14 }}>فلتر بالتاريخ:</label>
                   <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
                     style={{ padding: "8px 12px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, color: "#fff", fontFamily: "Cairo" }} />
                   {filterDate && <button onClick={() => setFilterDate("")}
-                    style={{ padding: "8px 12px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo" }}>
-                    مسح الفلتر
-                  </button>}
+                    style={{ padding: "8px 12px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "Cairo" }}>مسح</button>}
                 </div>
-
                 {loading ? (
                   <div style={{ textAlign: "center", color: "#94a3b8", padding: 40 }}>جاري التحميل...</div>
                 ) : filteredBookings.length === 0 ? (
@@ -232,41 +245,60 @@ export default function AdminPage() {
             )}
 
             {activeTab === "stats" && (
-              <div>
-                <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24 }}>
-                  <h3 style={{ color: "#fff", margin: "0 0 20px", fontSize: 18 }}>💰 تفاصيل الإيرادات</h3>
-                  
-                  {/* Revenue by service */}
-                  <div style={{ marginBottom: 24 }}>
-                    <h4 style={{ color: "#94a3b8", fontSize: 14, margin: "0 0 12px" }}>إيرادات كل خدمة</h4>
-                    {Object.keys(servicePrices).map(service => {
-                      const count = bookings.filter(b => b.service === service).length;
-                      const revenue = count * servicePrices[service];
-                      return (
-                        <div key={service} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                          <span style={{ color: "#fff" }}>{service}</span>
-                          <span style={{ color: "#94a3b8", fontSize: 13 }}>{count} حجز</span>
-                          <span style={{ color: "#22c55e", fontWeight: 700 }}>{revenue} جنيه</span>
-                        </div>
-                      );
-                    })}
+              <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24 }}>
+                <h3 style={{ color: "#fff", margin: "0 0 20px", fontSize: 18 }}>💰 تفاصيل الإيرادات</h3>
+                {Object.keys(servicePrices).map(service => {
+                  const count = bookings.filter(b => b.service === service).length;
+                  const revenue = count * servicePrices[service];
+                  return (
+                    <div key={service} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <span style={{ color: "#fff" }}>{service}</span>
+                      <span style={{ color: "#94a3b8", fontSize: 13 }}>{count} حجز</span>
+                      <span style={{ color: "#22c55e", fontWeight: 700 }}>{revenue} جنيه</span>
+                    </div>
+                  );
+                })}
+                <div style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 12, padding: 16, marginTop: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ color: "#94a3b8" }}>إيرادات اليوم</span>
+                    <span style={{ color: "#22c55e", fontWeight: 900, fontSize: 18 }}>{todayRevenue} جنيه</span>
                   </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ color: "#94a3b8" }}>إيرادات الشهر</span>
+                    <span style={{ color: "#22c55e", fontWeight: 900, fontSize: 18 }}>{monthRevenue} جنيه</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#94a3b8" }}>إجمالي الإيرادات</span>
+                    <span style={{ color: "#22c55e", fontWeight: 900, fontSize: 22 }}>{totalRevenue} جنيه</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
-                  {/* Summary */}
-                  <div style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 12, padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ color: "#94a3b8" }}>إيرادات اليوم</span>
-                      <span style={{ color: "#22c55e", fontWeight: 900, fontSize: 18 }}>{todayRevenue} جنيه</span>
+            {activeTab === "settings" && (
+              <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24 }}>
+                <h3 style={{ color: "#fff", margin: "0 0 20px", fontSize: 18 }}>⚙️ تغيير كلمة السر</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 400 }}>
+                  {[
+                    { label: "كلمة السر القديمة", value: oldPass, set: setOldPass },
+                    { label: "كلمة السر الجديدة", value: newPass, set: setNewPass },
+                    { label: "تأكيد كلمة السر الجديدة", value: confirmPass, set: setConfirmPass },
+                  ].map((f, i) => (
+                    <div key={i}>
+                      <label style={{ color: "#94a3b8", fontSize: 14, display: "block", marginBottom: 8 }}>{f.label}</label>
+                      <input type="password" value={f.value} onChange={e => f.set(e.target.value)}
+                        style={{ width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "#fff", fontSize: 15, boxSizing: "border-box", fontFamily: "Cairo", outline: "none" }} />
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ color: "#94a3b8" }}>إيرادات الشهر</span>
-                      <span style={{ color: "#22c55e", fontWeight: 900, fontSize: 18 }}>{monthRevenue} جنيه</span>
+                  ))}
+                  {passMsg && (
+                    <div style={{ padding: 12, borderRadius: 8, background: passMsg.includes("✅") ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: passMsg.includes("✅") ? "#22c55e" : "#ef4444", fontSize: 14 }}>
+                      {passMsg}
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "#94a3b8" }}>إجمالي الإيرادات</span>
-                      <span style={{ color: "#22c55e", fontWeight: 900, fontSize: 22 }}>{totalRevenue} جنيه</span>
-                    </div>
-                  </div>
+                  )}
+                  <button onClick={changePassword}
+                    style={{ padding: "14px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>
+                    حفظ كلمة السر الجديدة
+                  </button>
                 </div>
               </div>
             )}
