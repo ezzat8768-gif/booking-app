@@ -33,7 +33,7 @@ export default function Home() {
     setLoading(true);
     const ref = "BK" + Math.floor(Math.random() * 90000 + 10000);
     try {
-      await fetch("/api/bookings", {
+      const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,6 +42,12 @@ export default function Home() {
           service: selectedService.name, notes: form.notes,
         }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "حصل خطأ، حاول تاني!");
+        setLoading(false);
+        return;
+      }
       setBookingRef(ref);
       setBooked(true);
     } catch {
@@ -59,19 +65,14 @@ export default function Home() {
     <div style={{ fontFamily: "'Cairo', sans-serif", minHeight: "100vh", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)", direction: "rtl" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet" />
 
-      {/* Header */}
-      <header style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h1 style={{ color: "#fff", fontSize: 24, fontWeight: 900, margin: 0 }}>🗓️ نظام حجز المواعيد</h1>
-          <p style={{ color: "#94a3b8", fontSize: 13, margin: 0 }}>احجز موعدك بسهولة وسرعة</p>
-        </div>
+      <header style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "16px 32px" }}>
+        <h1 style={{ color: "#fff", fontSize: 24, fontWeight: 900, margin: 0 }}>🗓️ نظام حجز المواعيد</h1>
+        <p style={{ color: "#94a3b8", fontSize: 13, margin: 0 }}>احجز موعدك بسهولة وسرعة</p>
       </header>
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "40px 20px" }}>
-
         {!booked && (
           <>
-            {/* Steps */}
             <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 40 }}>
               {["اختار الخدمة", "حدد الموعد", "بياناتك"].map((s, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center" }}>
@@ -86,7 +87,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* STEP 1 */}
             {step === 1 && (
               <div>
                 <h2 style={{ color: "#fff", textAlign: "center", fontSize: 22, marginBottom: 24 }}>اختار الخدمة المطلوبة</h2>
@@ -108,7 +108,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* STEP 2 */}
             {step === 2 && (
               <div>
                 <h2 style={{ color: "#fff", textAlign: "center", fontSize: 22, marginBottom: 24 }}>حدد التاريخ والوقت</h2>
@@ -139,7 +138,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* STEP 3 */}
             {step === 3 && (
               <div>
                 <h2 style={{ color: "#fff", textAlign: "center", fontSize: 22, marginBottom: 24 }}>بياناتك الشخصية</h2>
@@ -183,7 +181,6 @@ export default function Home() {
           </>
         )}
 
-        {/* SUCCESS */}
         {booked && (
           <div style={{ textAlign: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 48 }}>
             <div style={{ fontSize: 72, marginBottom: 16 }}>🎉</div>
