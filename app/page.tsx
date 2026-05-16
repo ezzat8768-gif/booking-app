@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const timeSlots = [
   "9:00 صباحاً", "9:30 صباحاً", "10:00 صباحاً", "10:30 صباحاً",
@@ -16,6 +16,22 @@ const services = [
   { id: 4, name: "جلسة علاجية", duration: "45 دقيقة", price: "200 جنيه", icon: "⭐" },
 ];
 
+type Settings = {
+  bgColor1: string;
+  bgColor2: string;
+  accentColor: string;
+  clinicName: string;
+  clinicSubtitle: string;
+};
+
+const defaultSettings: Settings = {
+  bgColor1: "#0a0a1a",
+  bgColor2: "#0d1f3c",
+  accentColor: "#6366f1",
+  clinicName: "نظام حجز المواعيد",
+  clinicSubtitle: "احجز موعدك بسهولة وسرعة",
+};
+
 export default function Home() {
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<typeof services[0] | null>(null);
@@ -24,11 +40,17 @@ export default function Home() {
   const [booked, setBooked] = useState(false);
   const [bookingRef, setBookingRef] = useState("");
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+
+  useEffect(() => {
+    fetch("/api/settings").then(r => r.json()).then(d => {
+      if (d && !d.error) setSettings({ ...defaultSettings, ...d });
+    }).catch(() => {});
+  }, []);
 
   const handleBook = async () => {
     if (!form.name || !form.phone || !form.date || !selectedTime || !selectedService) {
-      alert("من فضلك اكمل كل البيانات!");
-      return;
+      alert("من فضلك اكمل كل البيانات!"); return;
     }
     setLoading(true);
     const ref = "BK" + Math.floor(Math.random() * 90000 + 10000);
@@ -43,16 +65,10 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "حصل خطأ، حاول تاني!");
-        setLoading(false);
-        return;
-      }
+      if (!res.ok) { alert(data.error || "حصل خطأ!"); setLoading(false); return; }
       setBookingRef(ref);
       setBooked(true);
-    } catch {
-      alert("حصل خطأ، حاول تاني!");
-    }
+    } catch { alert("حصل خطأ، حاول تاني!"); }
     setLoading(false);
   };
 
@@ -61,92 +77,142 @@ export default function Home() {
     setSelectedTime(""); setForm({ name: "", phone: "", email: "", date: "", notes: "" });
   };
 
-  return (
-    <div style={{ fontFamily: "'Cairo', sans-serif", minHeight: "100vh", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)", direction: "rtl" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  const accent = settings.accentColor;
+  const bg = `linear-gradient(135deg, ${settings.bgColor1} 0%, ${settings.bgColor2} 50%, ${settings.bgColor1} 100%)`;
 
-      <header style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "16px 32px" }}>
-        <h1 style={{ color: "#fff", fontSize: 24, fontWeight: 900, margin: 0 }}>🗓️ نظام حجز المواعيد</h1>
-        <p style={{ color: "#94a3b8", fontSize: 13, margin: 0 }}>احجز موعدك بسهولة وسرعة</p>
+  return (
+    <div style={{ fontFamily: "'Cairo', sans-serif", minHeight: "100vh", background: bg, direction: "rtl", position: "relative", overflow: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+      
+      {/* Animated background orbs */}
+      <div style={{ position: "fixed", top: "-20%", right: "-10%", width: 600, height: 600, borderRadius: "50%", background: `radial-gradient(circle, ${accent}20, transparent 70%)`, filter: "blur(40px)", pointerEvents: "none", zIndex: 0 }} />
+      <div style={{ position: "fixed", bottom: "-20%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${accent}15, transparent 70%)`, filter: "blur(40px)", pointerEvents: "none", zIndex: 0 }} />
+
+      {/* Header */}
+      <header style={{ position: "relative", zIndex: 10, padding: "24px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${accent}20`, backdropFilter: "blur(20px)", background: "rgba(0,0,0,0.2)" }}>
+        <div>
+          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 900, margin: 0 }}>
+            <span style={{ color: accent }}>●</span> {settings.clinicName}
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: 0 }}>{settings.clinicSubtitle}</p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e" }} />
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>متاح الآن</span>
+        </div>
       </header>
 
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "40px 20px" }}>
-        {!booked && (
+      <main style={{ position: "relative", zIndex: 10, maxWidth: 860, margin: "0 auto", padding: "40px 20px" }}>
+        {!booked ? (
           <>
-            <div style={{ display: "flex", justifyContent: "center", gap: 0, marginBottom: 40 }}>
+            {/* Steps */}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 0, marginBottom: 48 }}>
               {["اختار الخدمة", "حدد الموعد", "بياناتك"].map((s, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center" }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, background: step > i + 1 ? "#22c55e" : step === i + 1 ? "#3b82f6" : "rgba(255,255,255,0.1)", color: "#fff", transition: "all 0.3s" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                      fontWeight: 900, fontSize: 16,
+                      background: step > i + 1 ? "#22c55e" : step === i + 1 ? accent : "rgba(255,255,255,0.05)",
+                      color: "#fff", border: `2px solid ${step >= i + 1 ? (step > i + 1 ? "#22c55e" : accent) : "rgba(255,255,255,0.1)"}`,
+                      boxShadow: step === i + 1 ? `0 0 20px ${accent}60` : "none",
+                      transition: "all 0.4s"
+                    }}>
                       {step > i + 1 ? "✓" : i + 1}
                     </div>
-                    <span style={{ color: step === i + 1 ? "#fff" : "#64748b", fontSize: 12, fontWeight: 600 }}>{s}</span>
+                    <span style={{ color: step === i + 1 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>{s}</span>
                   </div>
-                  {i < 2 && <div style={{ width: 80, height: 2, background: step > i + 1 ? "#22c55e" : "rgba(255,255,255,0.1)", margin: "0 8px", marginBottom: 24, transition: "all 0.3s" }} />}
+                  {i < 2 && <div style={{ width: 60, height: 1, background: step > i + 1 ? "#22c55e" : "rgba(255,255,255,0.1)", margin: "0 8px", marginBottom: 24, transition: "all 0.4s" }} />}
                 </div>
               ))}
             </div>
 
+            {/* STEP 1 */}
             {step === 1 && (
               <div>
-                <h2 style={{ color: "#fff", textAlign: "center", fontSize: 22, marginBottom: 24 }}>اختار الخدمة المطلوبة</h2>
+                <h2 style={{ color: "#fff", textAlign: "center", fontSize: 24, marginBottom: 8, fontWeight: 700 }}>اختار الخدمة</h2>
+                <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", fontSize: 14, marginBottom: 32 }}>اختار الخدمة المناسبة ليك</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   {services.map(s => (
                     <div key={s.id} onClick={() => setSelectedService(s)}
-                      style={{ background: selectedService?.id === s.id ? "rgba(59,130,246,0.3)" : "rgba(255,255,255,0.05)", border: `2px solid ${selectedService?.id === s.id ? "#3b82f6" : "rgba(255,255,255,0.1)"}`, borderRadius: 16, padding: 24, cursor: "pointer", transition: "all 0.3s" }}>
-                      <div style={{ fontSize: 36, marginBottom: 12 }}>{s.icon}</div>
+                      style={{
+                        background: selectedService?.id === s.id ? `${accent}25` : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${selectedService?.id === s.id ? accent : "rgba(255,255,255,0.08)"}`,
+                        borderRadius: 20, padding: 28, cursor: "pointer",
+                        boxShadow: selectedService?.id === s.id ? `0 0 30px ${accent}30` : "none",
+                        transition: "all 0.3s",
+                        backdropFilter: "blur(10px)",
+                      }}>
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>{s.icon}</div>
                       <h3 style={{ color: "#fff", fontSize: 18, fontWeight: 700, margin: "0 0 8px" }}>{s.name}</h3>
-                      <p style={{ color: "#94a3b8", fontSize: 13, margin: "0 0 4px" }}>⏱️ {s.duration}</p>
-                      <p style={{ color: "#3b82f6", fontSize: 16, fontWeight: 700, margin: 0 }}>{s.price}</p>
+                      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, margin: "0 0 12px" }}>⏱ {s.duration}</p>
+                      <p style={{ color: accent, fontSize: 18, fontWeight: 900, margin: 0 }}>{s.price}</p>
                     </div>
                   ))}
                 </div>
                 <button onClick={() => { if (!selectedService) { alert("اختار خدمة أول!"); return; } setStep(2); }}
-                  style={{ marginTop: 24, width: "100%", padding: "14px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>
+                  style={{ marginTop: 24, width: "100%", padding: "16px", background: accent, color: "#fff", border: "none", borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo", boxShadow: `0 8px 30px ${accent}50`, transition: "all 0.3s" }}>
                   التالي ←
                 </button>
               </div>
             )}
 
+            {/* STEP 2 */}
             {step === 2 && (
               <div>
-                <h2 style={{ color: "#fff", textAlign: "center", fontSize: 22, marginBottom: 24 }}>حدد التاريخ والوقت</h2>
-                <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24, marginBottom: 20 }}>
-                  <label style={{ color: "#94a3b8", fontSize: 14, display: "block", marginBottom: 8 }}>التاريخ</label>
+                <h2 style={{ color: "#fff", textAlign: "center", fontSize: 24, marginBottom: 8, fontWeight: 700 }}>حدد التاريخ والوقت</h2>
+                <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", fontSize: 14, marginBottom: 32 }}>اختار التاريخ والوقت المناسب</p>
+                
+                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: 24, marginBottom: 20, backdropFilter: "blur(10px)" }}>
+                  <label style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, display: "block", marginBottom: 10 }}>📅 التاريخ</label>
                   <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
                     min={new Date().toISOString().split("T")[0]}
-                    style={{ width: "100%", padding: "12px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, color: "#fff", fontSize: 15, boxSizing: "border-box", fontFamily: "Cairo" }} />
+                    style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}40`, borderRadius: 12, color: "#fff", fontSize: 15, boxSizing: "border-box", fontFamily: "Cairo", outline: "none" }} />
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24 }}>
-                  <label style={{ color: "#94a3b8", fontSize: 14, display: "block", marginBottom: 12 }}>الوقت المتاح</label>
+
+                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: 24, backdropFilter: "blur(10px)" }}>
+                  <label style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, display: "block", marginBottom: 14 }}>🕐 الوقت المتاح</label>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                     {timeSlots.map(t => (
                       <button key={t} onClick={() => setSelectedTime(t)}
-                        style={{ padding: "10px 6px", borderRadius: 8, border: `1px solid ${selectedTime === t ? "#3b82f6" : "rgba(255,255,255,0.15)"}`, background: selectedTime === t ? "#3b82f6" : "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "Cairo", fontWeight: 600 }}>
+                        style={{
+                          padding: "10px 4px", borderRadius: 10,
+                          border: `1px solid ${selectedTime === t ? accent : "rgba(255,255,255,0.08)"}`,
+                          background: selectedTime === t ? accent : "rgba(255,255,255,0.03)",
+                          color: "#fff", fontSize: 11, cursor: "pointer", fontFamily: "Cairo", fontWeight: 600,
+                          boxShadow: selectedTime === t ? `0 0 15px ${accent}40` : "none",
+                          transition: "all 0.2s"
+                        }}>
                         {t}
                       </button>
                     ))}
                   </div>
                 </div>
+
                 <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-                  <button onClick={() => setStep(1)} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>→ رجوع</button>
+                  <button onClick={() => setStep(1)} style={{ flex: 1, padding: "16px", background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>→ رجوع</button>
                   <button onClick={() => { if (!form.date || !selectedTime) { alert("اختار التاريخ والوقت!"); return; } setStep(3); }}
-                    style={{ flex: 2, padding: "14px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>
+                    style={{ flex: 2, padding: "16px", background: accent, color: "#fff", border: "none", borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo", boxShadow: `0 8px 30px ${accent}50` }}>
                     التالي ←
                   </button>
                 </div>
               </div>
             )}
 
+            {/* STEP 3 */}
             {step === 3 && (
               <div>
-                <h2 style={{ color: "#fff", textAlign: "center", fontSize: 22, marginBottom: 24 }}>بياناتك الشخصية</h2>
-                <div style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 12, padding: 16, marginBottom: 24, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                  <span style={{ color: "#93c5fd", fontSize: 14 }}>🛎️ {selectedService?.name}</span>
-                  <span style={{ color: "#93c5fd", fontSize: 14 }}>📅 {form.date}</span>
-                  <span style={{ color: "#93c5fd", fontSize: 14 }}>🕐 {selectedTime}</span>
-                  <span style={{ color: "#93c5fd", fontSize: 14, fontWeight: 700 }}>{selectedService?.price}</span>
+                <h2 style={{ color: "#fff", textAlign: "center", fontSize: 24, marginBottom: 8, fontWeight: 700 }}>بياناتك الشخصية</h2>
+                <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", fontSize: 14, marginBottom: 32 }}>ادخل بياناتك لتأكيد الحجز</p>
+
+                {/* Summary */}
+                <div style={{ background: `${accent}15`, border: `1px solid ${accent}30`, borderRadius: 16, padding: 16, marginBottom: 24, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>🛎 {selectedService?.name}</span>
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>📅 {form.date}</span>
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>🕐 {selectedTime}</span>
+                  <span style={{ color: accent, fontSize: 13, fontWeight: 900 }}>{selectedService?.price}</span>
                 </div>
+
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {[
                     { label: "الاسم الكامل *", key: "name", type: "text", placeholder: "اكتب اسمك بالكامل" },
@@ -154,62 +220,65 @@ export default function Home() {
                     { label: "البريد الإلكتروني", key: "email", type: "email", placeholder: "example@email.com" },
                   ].map(f => (
                     <div key={f.key}>
-                      <label style={{ color: "#94a3b8", fontSize: 14, display: "block", marginBottom: 8 }}>{f.label}</label>
+                      <label style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, display: "block", marginBottom: 8 }}>{f.label}</label>
                       <input type={f.type} placeholder={f.placeholder}
                         value={form[f.key as keyof typeof form]}
                         onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                        style={{ width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "#fff", fontSize: 15, boxSizing: "border-box", fontFamily: "Cairo", outline: "none" }} />
+                        style={{ width: "100%", padding: "14px 16px", background: "rgba(255,255,255,0.04)", border: `1px solid ${accent}30`, borderRadius: 12, color: "#fff", fontSize: 15, boxSizing: "border-box", fontFamily: "Cairo", outline: "none" }} />
                     </div>
                   ))}
                   <div>
-                    <label style={{ color: "#94a3b8", fontSize: 14, display: "block", marginBottom: 8 }}>ملاحظات إضافية</label>
-                    <textarea placeholder="أي ملاحظات تريد إضافتها..."
-                      value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-                      rows={3}
-                      style={{ width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "#fff", fontSize: 15, boxSizing: "border-box", fontFamily: "Cairo", resize: "none", outline: "none" }} />
+                    <label style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, display: "block", marginBottom: 8 }}>ملاحظات إضافية</label>
+                    <textarea placeholder="أي ملاحظات تريد إضافتها..." value={form.notes}
+                      onChange={e => setForm({ ...form, notes: e.target.value })} rows={3}
+                      style={{ width: "100%", padding: "14px 16px", background: "rgba(255,255,255,0.04)", border: `1px solid ${accent}30`, borderRadius: 12, color: "#fff", fontSize: 15, boxSizing: "border-box", fontFamily: "Cairo", resize: "none", outline: "none" }} />
                   </div>
                 </div>
+
                 <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-                  <button onClick={() => setStep(2)} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>→ رجوع</button>
+                  <button onClick={() => setStep(2)} style={{ flex: 1, padding: "16px", background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>→ رجوع</button>
                   <button onClick={handleBook} disabled={loading}
-                    style={{ flex: 2, padding: "14px", background: loading ? "#475569" : "linear-gradient(135deg, #3b82f6, #8b5cf6)", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "Cairo" }}>
+                    style={{ flex: 2, padding: "16px", background: loading ? "rgba(255,255,255,0.1)" : accent, color: "#fff", border: "none", borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "Cairo", boxShadow: loading ? "none" : `0 8px 30px ${accent}50` }}>
                     {loading ? "جاري الحجز..." : "✅ تأكيد الحجز"}
                   </button>
                 </div>
               </div>
             )}
           </>
-        )}
-
-        {booked && (
-          <div style={{ textAlign: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 48 }}>
+        ) : (
+          // SUCCESS
+          <div style={{ textAlign: "center", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 28, padding: 48, backdropFilter: "blur(20px)" }}>
             <div style={{ fontSize: 72, marginBottom: 16 }}>🎉</div>
             <h2 style={{ color: "#22c55e", fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>تم الحجز بنجاح!</h2>
-            <p style={{ color: "#94a3b8", marginBottom: 32 }}>رقم الحجز الخاص بك</p>
-            <div style={{ background: "rgba(59,130,246,0.2)", border: "2px dashed #3b82f6", borderRadius: 12, padding: "16px 32px", display: "inline-block", marginBottom: 32 }}>
-              <span style={{ color: "#3b82f6", fontSize: 28, fontWeight: 900, letterSpacing: 4 }}>{bookingRef}</span>
+            <p style={{ color: "rgba(255,255,255,0.4)", marginBottom: 32 }}>رقم الحجز الخاص بك</p>
+            <div style={{ background: `${accent}15`, border: `2px dashed ${accent}`, borderRadius: 14, padding: "16px 32px", display: "inline-block", marginBottom: 32 }}>
+              <span style={{ color: accent, fontSize: 28, fontWeight: 900, letterSpacing: 4 }}>{bookingRef}</span>
             </div>
-            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, marginBottom: 32, textAlign: "right" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                <span style={{ color: "#94a3b8" }}>الاسم</span><span style={{ color: "#fff", fontWeight: 700 }}>{form.name}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                <span style={{ color: "#94a3b8" }}>الخدمة</span><span style={{ color: "#fff", fontWeight: 700 }}>{selectedService?.name}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                <span style={{ color: "#94a3b8" }}>التاريخ</span><span style={{ color: "#fff", fontWeight: 700 }}>{form.date}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                <span style={{ color: "#94a3b8" }}>الوقت</span><span style={{ color: "#fff", fontWeight: 700 }}>{selectedTime}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0" }}>
-                <span style={{ color: "#94a3b8" }}>السعر</span><span style={{ color: "#3b82f6", fontWeight: 900 }}>{selectedService?.price}</span>
-              </div>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 16, padding: 24, marginBottom: 32, textAlign: "right" }}>
+              {[
+                { label: "الاسم", value: form.name },
+                { label: "الخدمة", value: selectedService?.name },
+                { label: "التاريخ", value: form.date },
+                { label: "الوقت", value: selectedTime },
+                { label: "السعر", value: selectedService?.price },
+              ].map((item, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: i < 4 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                  <span style={{ color: "rgba(255,255,255,0.4)" }}>{item.label}</span>
+                  <span style={{ color: i === 4 ? accent : "#fff", fontWeight: i === 4 ? 900 : 700 }}>{item.value}</span>
+                </div>
+              ))}
             </div>
-            <button onClick={resetBooking}
-              style={{ padding: "14px 40px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>
-              حجز موعد جديد
-            </button>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <a href={`https://wa.me/?text=${encodeURIComponent(`✅ تأكيد حجز موعد\n\nرقم الحجز: ${bookingRef}\nالاسم: ${form.name}\nالخدمة: ${selectedService?.name}\nالتاريخ: ${form.date}\nالوقت: ${selectedTime}\nالسعر: ${selectedService?.price}\n\nشكراً لحجزك معنا! 🙏`)}`}
+                target="_blank"
+                style={{ padding: "14px 24px", background: "#25d366", color: "#fff", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>
+                📲 ارسل على واتساب
+              </a>
+              <button onClick={resetBooking}
+                style={{ padding: "14px 24px", background: accent, color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "Cairo" }}>
+                حجز موعد جديد
+              </button>
+            </div>
           </div>
         )}
       </main>
